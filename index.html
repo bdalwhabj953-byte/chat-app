@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title> مجتمع المدرسة</title>
+<style>
+  :root{
+    --bg:#111;
+    --panel:#222;
+    --accent:#25D366;
+    --muted:#ccc;
+  }
+  html,body{height:100%;margin:0;font-family:"Tahoma",sans-serif;background:var(--bg);color:#fff;font-size:14px; -webkit-font-smoothing:antialiased;}
+  header{
+    background:#075E54;padding:10px;display:flex;align-items:center;justify-content:center;gap:10px;position:sticky;top:0;z-index:20;
+  }
+  header button{background:var(--accent);color:#000;border:none;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px;}
+  #messages{
+    height:calc(100vh - 260px);
+    overflow-y:auto;
+    padding:10px;
+    background:#000;
+    font-size:14px;
+    display:flex;flex-direction:column;gap:6px;
+    transform-origin: center top;
+    -webkit-overflow-scrolling:touch;
+  }
+  .message{
+    margin:0;
+    padding:10px 12px;
+    border-radius:12px;
+    max-width:80%;
+    word-wrap:break-word;
+    position:relative;
+    box-shadow:0 1px 0 rgba(255,255,255,0.02);
+    line-height:1.35;
+  }
+  /* المرسلة من المستخدم: على اليسار */
+  .sent{background:var(--accent);color:#000;margin-right:auto;text-align:left;}
+  /* المستلمة من الآخرين: على اليمين */
+  .received{background:#333;color:#fff;margin-left:auto;text-align:right;}
+  .meta{font-size:12px;color:var(--muted);margin-bottom:6px;display:block;}
+  .deletedMsg{font-style:italic;color:#999;padding:8px;}
+  #inputArea{display:flex;padding:8px;gap:8px;background:var(--panel);align-items:center;position:sticky;bottom:0;}
+  #fileInput{display:none;}
+  button.iconBtn{background:#128C7E;border:none;color:white;font-size:18px;padding:8px;border-radius:50%;cursor:pointer;}
+  #sendBtn{background:var(--accent);border:none;color:#000;font-size:16px;padding:8px 12px;border-radius:50%;cursor:pointer;}
+  #messageInput{flex:1;padding:10px;border-radius:20px;border:none;font-size:14px;background:#151515;color:#fff;}
+  #loginBox{background:#1e1e1e;padding:16px;text-align:center;}
+  #loginBox input,#loginBox select{padding:10px;margin:6px;border-radius:10px;border:none;width:86%;font-size:14px;background:#111;color:#fff;}
+  #loginBtn{padding:8px 16px;background:var(--accent);border:none;border-radius:10px;cursor:pointer;font-size:14px;}
+  #participantsBtn{position:absolute;top:12px;left:12px;background:var(--accent);color:#000;border:none;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:12px;}
+  #participantsPanel{display:none;position:fixed;top:60px;left:50%;transform:translateX(-50%);width:92%;max-width:340px;background:var(--panel);padding:10px;border-radius:12px;max-height:60vh;overflow:auto;z-index:100;}
+  #participantsPanel h3{margin:0 0 8px 0;text-align:center;}
+  #participantsList{list-style:none;padding:0;margin:0;}
+  #participantsList li{padding:6px;border-bottom:1px solid #333;display:flex;justify-content:space-between;align-items:center;}
+  #emojiPanel{display:none;position:absolute;background:var(--panel);padding:8px;border-radius:8px;border:1px solid #333;z-index:50;}
+  #emojiPanel span{cursor:pointer;font-size:18px;padding:4px;display:inline-block;}
+  #notificationSettings{display:flex;gap:10px;justify-content:center;margin:8px;}
+  #downloadChat{background:#3498db;border:none;color:white;padding:6px 10px;border-radius:8px;cursor:pointer;}
+  .typingIndicator{font-size:12px;color:var(--muted);padding:6px;}
+  /* Action menu */
+  .actionMenu{position:fixed;background:var(--panel);border:1px solid #333;padding:6px;border-radius:8px;z-index:9999;direction:rtl;}
+  .actionMenu button{display:block;width:100%;background:transparent;border:none;color:#fff;padding:6px;text-align:right;cursor:pointer;border-radius:6px;}
+  .actionMenu button:hover{background:#2a2a2a;}
+  /* responsive */
+  @media (max-width:420px){
+    #messages{height:calc(100vh - 300px);}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:8px;">
+    💬 <strong>مجتمع المدرسة</strong>
+  </div>
+  <button id="participantsBtn">👥 المشاركين</button>
+ </header>
+
+<div id="loginBox">
+  <h3>🔑 سجل دخولك</h3>
+  <input type="text" id="usernameInput" placeholder="ادخل اسمك الثلاثي" />
+  <select id="roleInput">
+    <option>معلم</option>
+    <option>طالب</option>
+    <option>ولي أمر</option>
+  </select>
+  <br />
+  <button id="loginBtn">دخول</button>
+</div>
+
+<div id="messages" style="display:none;"></div>
+
+<div id="inputArea" style="display:none;">
+  <div style="position:relative;">
+    <button id="emojiBtn" class="iconBtn">😊</button>
+    <div id="emojiPanel">
+      <span>😀</span> <span>😃</span> <span>😄</span> <span>😁</span> <span>😆</span> <span>😂</span> <span>🙂</span> <span>🙃</span> <span>😉</span> <span>😊</span> <span>😇</span>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*,video/*,application/*" />
+  <button id="fileBtn" class="iconBtn">📎</button>
+  <input type="text" id="messageInput" placeholder="اكتب رسالتك..." autocomplete="off" />
+  <button id="sendBtn">➤</button>
+</div>
+
+<div id="notificationSettings">
+  <label style="font-size:13px;"><input type="checkbox" id="notifyAll" checked /> استقبال إشعارات الجميع</label>
+  <label style="font-size:13px;"><input type="checkbox" id="notifyTeachers" /> استقبال إشعارات المعلم/المدير فقط</label>
+</div>
+
+<div id="participantsPanel">
+  <h3>👥 المشاركين</h3>
+  <ul id="participantsList"></ul>
+  <div style="text-align:center;margin-top:8px;"><button onclick="document.getElementById('participantsPanel').style.display='none'">إغلاق</button></div>
+</div>
+
+<script type="module">
+/* Firebase imports */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getDatabase, ref, push, onChildAdded, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+/* === إعداد Firebase (احتفظت بإعداداتك) === */
+const firebaseConfig = {
+  apiKey: "AIzaSyCe-UJdZAchrvED18Z_ZA0j6sL_RUga1Vg",
+  authDomain: "chat-app-ff837.firebaseapp.com",
+  databaseURL: "https://chat-app-ff837-default-rtdb.firebaseio.com",
+  projectId: "chat-app-ff837",
+  storageBucket: "chat-app-ff837.firebasestorage.app",
+  messagingSenderId: "328877248171",
+  appId: "1:328877248171:web:06cb9a9057bac2952bf1ee"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const chatRef = ref(db, "messages");
+const usersRef = ref(db, "users");
+const typingRef = ref(db, "typing");
+
+let username = null, role = null;
+
+const loginBox = document.getElementById("loginBox");
+const messagesDiv = document.getElementById("messages");
+const inputArea = document.getElementById("inputArea");
+const input = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const fileBtn = document.getElementById("fileBtn");
+const fileInput = document.getElementById("fileInput");
+const participantsBtn = document.getElementById("participantsBtn");
+const participantsPanel = document.getElementById("participantsPanel");
+const participantsList = document.getElementById("participantsList");
+const emojiBtn = document.getElementById("emojiBtn");
+const emojiPanel = document.getElementById("emojiPanel");
+const notifyAll = document.getElementById("notifyAll");
+const notifyTeachers = document.getElementById("notifyTeachers");
+const downloadChat = document.getElementById("downloadChat");
+
+const autoRoles = {
+  "هادي محمد محسن جلال": "مدير",
+  "محمد سالم علي جلال": "وكيل"
+};
+
+/* ===== تسجيل الدخول (الاسم الثلاثي إلزامي + منع التكرار) ===== */
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const nameInput = document.getElementById("usernameInput").value.trim();
+  if (nameInput.split(" ").length < 3) { alert("⚠️ يجب إدخال الاسم الثلاثي"); return; }
+  try {
+    const snap = await get(usersRef);
+    if (snap.exists() && snap.hasChild(nameInput)) { alert("⚠️ هذا الاسم موجود مسبقاً"); return; }
+  } catch (e) { console.warn("تعذر التحقق من الأسماء:", e); }
+  username = nameInput;
+  role = autoRoles[username] || document.getElementById("roleInput").value;
+  localStorage.setItem("username", username);
+  localStorage.setItem("role", role);
+  loginBox.style.display = "none"; messagesDiv.style.display = "flex"; inputArea.style.display = "flex";
+  joinChat();
+});
+
+/* إعادة الدخول التلقائي إذا موجود */
+if (localStorage.getItem("username")) {
+  username = localStorage.getItem("username");
+  role = localStorage.getItem("role");
+  loginBox.style.display = "none"; messagesDiv.style.display = "flex"; inputArea.style.display = "flex";
+  joinChat();
+}
+
+function joinChat() {
+  set(ref(db, "users/" + username), { role: role, online: true });
+  // نظف حالة الكتابة عند الخروج / إغلاق الصفحة
+  window.addEventListener("beforeunload", () => {
+    if (username) set(ref(db, "users/" + username + "/online"), false);
+    if (username) update(ref(db, "typing/" + username), { typing: false });
+  });
+}
+
+/* ===== Helpers: Avatars ===== */
+function getAvatar(u, r) {
+  const defaultAvatars = { "مدير": "🟢", "وكيل": "🔵", "معلم": "🟡", "طالب": "⚪", "ولي أمر": "🟠" };
+  return defaultAvatars[r] || "⚪";
+}
+
+/* ===== إرسال نص / ملف ===== */
+sendBtn.addEventListener("click", () => sendMessage(input.value));
+function sendMessage(text) {
+  if (!text || !text.trim()) return;
+  push(chatRef, { user: username, role: role, text: text, type: "text", time: new Date().toLocaleTimeString() });
+  input.value = "";
+  notifyUser("رسالة جديدة", text);
+}
+
+fileBtn.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    push(chatRef, { user: username, role: role, text: "📎 ملف/صورة: " + file.name, type: "file", time: new Date().toLocaleTimeString() });
+    notifyUser("ملف جديد", file.name);
+  }
+});
+
+/* ===== Emojis ===== */
+emojiBtn.addEventListener("click", () => {
+  emojiPanel.style.display = emojiPanel.style.display === "none" ? "block" : "none";
+});
+emojiPanel.addEventListener("click", (e) => {
+  if (e.target.tagName === "SPAN") {
+    input.value += e.target.textContent;
+    emojiPanel.style.display = "none";
+    input.focus();
+  }
+});
+
+/* ===== عرض الرسائل (المرسلة يسار، المستلمة يمين) مع إدارة الحذف ===== */
+onChildAdded(chatRef, snapshot => {
+  const msg = snapshot.val();
+  const key = snapshot.key;
+  const div = document.createElement("div");
+  div.className = "message " + (msg.user === username ? "sent" : "received");
+  div.dataset.key = key;
+
+  if (msg.deleted) {
+    div.innerHTML = `<div class="deletedMsg">تم الحذف بواسطة ${msg.deletedBy || "المرسل"}</div>`;
+  } else {
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.style.textAlign = msg.user === username ? "left" : "right";
+    meta.textContent = `${getAvatar(msg.user, msg.role)} ${msg.user} (${msg.role}) • ${msg.time || ""}`;
+    div.appendChild(meta);
+
+    const content = document.createElement("div");
+    content.style.textAlign = msg.user === username ? "left" : "right";
+    content.textContent = msg.text;
+    div.appendChild(content);
+  }
+
+  // قائمة الإجراءات عند الضغط الطويل / كليك يمين
+  div.addEventListener("contextmenu", (e) => { e.preventDefault(); showActionMenu(e.clientX, e.clientY, msg, key, div); });
+
+  // لمس طويل على الجوال
+  let touchTimer = null;
+  div.addEventListener("touchstart", (e) => {
+    if (touchTimer) clearTimeout(touchTimer);
+    touchTimer = setTimeout(() => {
+      const touch = e.touches[0];
+      showActionMenu(touch.clientX, touch.clientY, msg, key, div);
+    }, 600);
+  });
+  div.addEventListener("touchend", (e) => { if (touchTimer) clearTimeout(touchTimer); });
+
+  messagesDiv.appendChild(div);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+/* ===== قائمة الإجراءات (حذف لدى الجميع للمخولين أو حذف لدى المرسل) ===== */
+function showActionMenu(x, y, msg, key, anchorDiv) {
+  const prev = document.querySelector(".actionMenu"); if (prev) prev.remove();
+  const menu = document.createElement("div"); menu.className = "actionMenu";
+  // ضبط مكان القائمة داخل الشاشة
+  const menuWidth = 160;
+  const menuHeightEstimate = 120;
+  const winW = window.innerWidth, winH = window.innerHeight;
+  let left = x, top = y;
+  if (left + menuWidth > winW) left = winW - menuWidth - 10;
+  if (top + menuHeightEstimate > winH) top = winH - menuHeightEstimate - 10;
+  menu.style.left = left + "px"; menu.style.top = top + "px";
+
+  // إمكانية حذف لدى المرسل (إن كانت رسالتك)
+  if (msg.user === username) {
+    const delSelf = document.createElement("button"); delSelf.textContent = "🗑️ حذف لدى المرسل";
+    delSelf.addEventListener("click", () => { update(ref(db, "messages/" + key), { deleted: true, deletedBy: "المرسل" }); menu.remove(); });
+    menu.appendChild(delSelf);
+  }
+  // حذف لدى الجميع (للمدير/وكيل/معلم)
+  if (["مدير", "وكيل", "معلم"].includes(role)) {
+    const delAll = document.createElement("button"); delAll.textContent = "🛑 حذف لدى الجميع";
+    delAll.addEventListener("click", () => {
+      if (confirm("هل تريد حذف هذه الرسالة لدى الجميع؟")) {
+        update(ref(db, "messages/" + key), { deleted: true, deletedBy: role });
+      }
+      menu.remove();
+    });
+    menu.appendChild(delAll);
+  }
+
+  const closeBtn = document.createElement("button"); closeBtn.textContent = "إغلاق";
+  closeBtn.addEventListener("click", () => menu.remove());
+  menu.appendChild(closeBtn);
+
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    const remover = (ev) => { if (!menu.contains(ev.target)) menu.remove(); document.removeEventListener("click", remover); };
+    document.addEventListener("click", remover);
+  }, 50);
+}
+
+/* ===== المشاركون (إخفاء الطالب وولي الأمر عن غير المخولين) ===== */
+participantsBtn.addEventListener("click", () => { participantsPanel.style.display = "block"; updateParticipantsList(); });
+function updateParticipantsList() {
+  onValue(usersRef, snapshot => {
+    participantsList.innerHTML = "";
+    snapshot.forEach(snap => {
+      const u = snap.key; const data = snap.val();
+      if (["طالب", "ولي أمر"].includes(data.role) && !["مدير", "وكيل", "معلم"].includes(role)) return;
+      const li = document.createElement("li");
+      li.textContent = `${u} (${data.role}) - ${data.online ? "🟢 متصل" : "⚪ غير متصل"}`;
+      participantsList.appendChild(li);
+    });
+  });
+}
+
+/* ===== إشعارات قابلة للتصفية ===== */
+function notifyUser(title, body) {
+  if (!notifyAll.checked) return;
+  // إذا اختار المستخدم أن يستقبل إشعارات المعلمين فقط
+  if (notifyTeachers.checked && !["مدير", "وكيل", "معلم"].includes(role)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body });
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(() => { /* لا شيء إضافي */ });
+  }
+}
+
+/* ===== مؤشر الكتابة Typing Indicator ===== */
+let typingTimeout = null;
+input.addEventListener("input", () => {
+  if (!username) return;
+  set(ref(db, "typing/" + username), { role: role, typing: input.value.length > 0 });
+  if (typingTimeout) clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    update(ref(db, "typing/" + username), { typing: false });
+  }, 1200);
+});
+onValue(typingRef, snap => {
+  // إزالة مؤشرات سابقة
+  messagesDiv.querySelectorAll(".typingIndicator").forEach(e => e.remove());
+  let typingText = "";
+  snap.forEach(s => {
+    const u = s.key; const data = s.val();
+    if (data && data.typing && u !== username) typingText += `${u} يكتب... `;
+  });
+  if (typingText) {
+    const tdiv = document.createElement("div"); tdiv.className = "typingIndicator"; tdiv.textContent = typingText;
+    messagesDiv.appendChild(tdiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+});
+
+/* ===== تحميل المحادثة ===== */
+downloadChat.addEventListener("click", async () => {
+  const snap = await get(chatRef);
+  if (!snap.exists()) return alert("لا توجد محادثات لتحميلها.");
+  let text = "";
+  snap.forEach(s => {
+    const m = s.val();
+    text += `${m.time || ""} ${m.user || ""} (${m.role || ""}): ${m.text || ""}\n`;
+  });
+  const blob = new Blob([text], { type: "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = "chat.txt"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+/* ===== Pinch-to-Zoom على صندوق الرسائل (#messages) =====
+   يعمل على أجهزة اللمس: إصبعين لتكبير/تصغير. === */
+let initialDistance = null;
+let baseScale = 1;
+let pinchCenter = { x: 0, y: 0 };
+
+function getDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+function getCenter(touches) {
+  return {
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2
+  };
+}
+
+messagesDiv.addEventListener("touchstart", (e) => {
+  if (e.touches.length === 2) {
+    initialDistance = getDistance(e.touches);
+    pinchCenter = getCenter(e.touches);
+    // لمنع سحب الصفحة أثناء الـ pinch
+    e.preventDefault();
+  }
+}, { passive: false });
+
+messagesDiv.addEventListener("touchmove", (e) => {
+  if (e.touches.length === 2 && initialDistance) {
+    const newDist = getDistance(e.touches);
+    const scale = Math.max(0.6, Math.min(2.5, baseScale * (newDist / initialDistance)));
+    // ضبط مركز التكبير كتحويل بسيط عن طريق transform-origin
+    const rect = messagesDiv.getBoundingClientRect();
+    const originX = ((pinchCenter.x - rect.left) / rect.width) * 100;
+    const originY = ((pinchCenter.y - rect.top) / rect.height) * 100;
+    messagesDiv.style.transformOrigin = `${originX}% ${originY}%`;
+    messagesDiv.style.transform = `scale(${scale})`;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+messagesDiv.addEventListener("touchend", (e) => {
+  if (initialDistance) {
+    // خزّن المقياس الحالي
+    const transform = messagesDiv.style.transform || "";
+    const m = transform.match(/scale\(([^)]+)\)/);
+    if (m) baseScale = parseFloat(m[1]);
+    // إعادة تهيئة
+    initialDistance = null;
+    pinchCenter = { x: 0, y: 0 };
+    // إذا صار المقياس قريباً من 1 نعيد القيم الافتراضية لتجنب تراكم التحويلات
+    if (Math.abs(baseScale - 1) < 0.02) {
+      baseScale = 1; messagesDiv.style.transform = ""; messagesDiv.style.transformOrigin = "center top";
+    }
+  }
+});
+
+/* ===== ملاحظة مهمة =====
+   - أثناء Pinch يتم منع التمرير الافتراضي لمنع تعارض اللمس والتمرير.
+   - الحد الأدنى للـ scale = 0.6 والحد الأقصى = 2.5 (يمكن تغييره). */
+
+/* ===== تنظيف بسيط عند ترك الصفحة ===== */
+window.addEventListener("unload", () => {
+  if (username) update(ref(db, "typing/" + username), { typing: false });
+});
+
+/* === نهاية السكربت === */
+</script>
+</body>
+</html>
